@@ -5,8 +5,8 @@ configure_file(output: 'config.h',
 
 snapd_desktop_integration = executable(
   'snapd-desktop-integration',
-  'main.c', 'refresh_status.c', 'dbus.c',
-  resources, gdbus_src,login_src, login_session_src,
+  'main.c', 'refresh_status.c', 'dbus.c', 'changes.c',
+  resources, gdbus_src, login_src, login_session_src, snap_changes_src,
   dependencies: [gtk_dep, snapd_glib_dep, libnotify_dep],
   install: true,
   link_args: ['-rdynamic'],

@@ -18,3 +18,9 @@ gdbus_src = gnome.gdbus_codegen('io.snapcraft.SnapDesktopIntegration',
   interface_prefix : 'io.snapcraft.',
   docbook : 'SnapDesktopIntegration-interface-doc'
 )
+
+snap_changes_src = gnome.gdbus_codegen('io.snapcraft.SnapChanges',
+  sources: 'io.snapcraft.SnapChanges.dbus.xml',
+  interface_prefix : 'io.snapcraft.',
+  docbook : 'SnapChanges-interface-doc'
+)

@@ -18,6 +18,7 @@
 #ifndef __DS_STATE_H__
 #define __DS_STATE_H__
 
+#include "io.snapcraft.SnapChanges.h"
 #include "io.snapcraft.SnapDesktopIntegration.h"
 #include <gtk/gtk.h>
 #include <libnotify/notify.h>
@@ -27,6 +28,7 @@
 
 typedef struct {
   SnapDesktopIntegration *skeleton;
+  SnapChanges *snap_dbus_proxy;
 
   GtkSettings *settings;
   SnapdClient *client;

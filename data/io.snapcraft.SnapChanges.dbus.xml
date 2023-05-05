@@ -1,0 +1,14 @@
+<node>
+<interface name='io.snapcraft.SnapChanges'>
+	<method name="GetTasks">
+		<arg type="s" name="change_id" direction="in" />
+		<arg type="a{sv}" name="extra_data" direction="in" />
+		<arg type="a{sa{sv}}" name="tasks_data" direction="out" />
+	</method>
+	<signal name="Change">
+		<arg type="s" name="change_id" />
+		<arg type="s" name="change_type" />
+		<arg type="a{sv}" name="metadata" />
+	</signal>
+</interface>
+</node>

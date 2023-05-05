@@ -27,6 +27,7 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include "changes.h"
 #include "dbus.h"
 #include "ds_state.h"
 #include "org.freedesktop.login1.Session.h"
@@ -382,6 +383,7 @@ static gboolean check_graphical_sessions(gpointer data) {
 static void do_startup(GObject *object, gpointer data) {
   DsState *state = (DsState *)data;
   notify_init("snapd-desktop-integration");
+  state->snap_dbus_proxy = NULL;
   state->settings = gtk_settings_get_default();
   state->client = snapd_client_new();
   state->app = GTK_APPLICATION(object);
@@ -391,6 +393,8 @@ static void do_startup(GObject *object, gpointer data) {
     g_clear_object(&(state->skeleton));
     g_message("Failed to export the DBus Desktop Integration API");
   }
+  manage_snap_dbus(g_application_get_dbus_connection(G_APPLICATION(state->app)),
+                   state);
 }
 
 static void do_activate(GObject *object, gpointer data) {

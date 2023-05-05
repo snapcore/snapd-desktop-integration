@@ -36,7 +36,15 @@ typedef struct {
   gboolean wait_change_in_lock_file;
   gint width;
   gint height;
+
+  guint ntasks;
+  guint doneTasks;
+  guint minId;
+  gchar *summary;
+  gboolean updated;
 } RefreshState;
+
+RefreshState *ds_state_find_application(DsState *state, const char *appName);
 
 void handle_application_is_being_refreshed(gchar *appName, gchar *lockFilePath,
                                            GVariant *extraParams,
