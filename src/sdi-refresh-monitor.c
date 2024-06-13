@@ -224,6 +224,78 @@ static void refresh_change(gpointer p) {
                                 g_object_ref(data->self));
 }
 
+static void update_inhibited_snaps(SdiRefreshMonitor *self, SnapdChange *change,
+                                   gboolean done, gboolean hold) {
+  SnapdAutorefreshChangeData *changeData =
+      SNAPD_AUTOREFRESH_CHANGE_DATA(snapd_change_get_data(change));
+
+  if (changeData == NULL) {
+    return;
+  }
+
+  GStrv snapNames = snapd_autorefresh_change_data_get_snap_names(changeData);
+  for (gchar **p = snapNames; *p != NULL; p++) {
+    g_autoptr(SdiSnap) snap = find_snap(self, *p);
+    // Only show progress bar if that snap shown an 'inhibited' notification
+    if (snap == NULL)
+      continue;
+
+    if (!sdi_snap_get_inhibited(snap))
+      continue;
+
+    if (done || hold) {
+      remove_snap(self, snap);
+      SnapRefreshData *data = g_malloc0(sizeof(SnapRefreshData));
+      data->snap_name = g_strdup(*p);
+      data->self = g_object_ref(self);
+      if (done) {
+        snapd_client_get_snap_async(self->client, *p, NULL, show_snap_completed,
+                                    data);
+      }
+      continue;
+    }
+
+    if (sdi_snap_get_hidden(snap) || sdi_snap_get_manually_hidden(snap)) {
+      continue;
+    }
+
+    g_autoptr(SdiRefreshDialog) dialog = sdi_snap_get_dialog(snap);
+    if (dialog == NULL) {
+      // if there's no dialog, get the data for this snap and create
+      // it avoid refresh notifications while the progress dialog is shown
+      sdi_snap_set_ignored(snap, TRUE);
+      SnapRefreshData *data = g_malloc0(sizeof(SnapRefreshData));
+      data->snap_name = g_strdup(*p);
+      data->self = g_object_ref(self);
+      snapd_client_get_snap_async(self->client, *p, NULL,
+                                  begin_application_refresh, data);
+      continue;
+    }
+
+    // if there's already a dialog for this snap, just refresh the
+    // progress bar
+    GPtrArray *tasks = snapd_change_get_tasks(change);
+    gint done = 0;
+    g_autoptr(SnapdTask) current_task = NULL;
+    for (guint i = 0; i < tasks->len; i++) {
+      SnapdTask *task = (SnapdTask *)tasks->pdata[i];
+      const gchar *status = snapd_task_get_status(task);
+      if (g_str_equal("Done", status)) {
+        done++;
+      } else if ((current_task == NULL) && g_str_equal("Doing", status)) {
+        current_task = g_object_ref(task);
+      }
+    }
+    if (current_task != NULL) {
+      sdi_refresh_dialog_set_n_tasks_progress(
+          dialog, snapd_task_get_summary(current_task), done, tasks->len);
+    }
+  }
+}
+
+static void update_dock_snaps(SdiRefreshMonitor *self, SnapdChange *change,
+                              gboolean done, gboolean hold) {}
+
 static void manage_change_update(SnapdClient *source, GAsyncResult *res,
                                  gpointer p) {
   g_autoptr(SdiRefreshMonitor) self = p;
@@ -244,70 +316,18 @@ static void manage_change_update(SnapdClient *source, GAsyncResult *res,
   gboolean hold = g_str_equal(snapd_change_get_status(change), "Hold");
   gboolean done = g_str_equal(snapd_change_get_status(change), "Done");
 
-  SnapdAutorefreshChangeData *changeData =
-      SNAPD_AUTOREFRESH_CHANGE_DATA(snapd_change_get_data(change));
-  if (changeData != NULL) {
-    GStrv snapNames = snapd_autorefresh_change_data_get_snap_names(changeData);
-    for (gchar **p = snapNames; *p != NULL; p++) {
-      g_autoptr(SdiSnap) snap = find_snap(self, *p);
-      // Only show progress bar if that snap shown an 'inhibited' notification
-      if (snap == NULL)
-        continue;
-      if (!sdi_snap_get_inhibited(snap))
-        continue;
-      if (done || hold) {
-        remove_snap(self, snap);
-        SnapRefreshData *data = g_malloc0(sizeof(SnapRefreshData));
-        data->snap_name = g_strdup(*p);
-        data->self = g_object_ref(self);
-        if (done)
-          snapd_client_get_snap_async(self->client, *p, NULL,
-                                      show_snap_completed, data);
-      } else {
-        if (!sdi_snap_get_hidden(snap) && !sdi_snap_get_manually_hidden(snap)) {
-          // if there's already a dialog for this snap, just refresh the
-          // progress bar
-          g_autoptr(SdiRefreshDialog) dialog = sdi_snap_get_dialog(snap);
-          if (dialog != NULL) {
-            GPtrArray *tasks = snapd_change_get_tasks(change);
-            gint done = 0;
-            g_autoptr(SnapdTask) current_task = NULL;
-            for (guint i = 0; i < tasks->len; i++) {
-              SnapdTask *task = (SnapdTask *)tasks->pdata[i];
-              const gchar *status = snapd_task_get_status(task);
-              if (g_str_equal("Done", status)) {
-                done++;
-              } else if ((current_task == NULL) &&
-                         g_str_equal("Doing", status)) {
-                current_task = g_object_ref(task);
-              }
-            }
-            if (current_task != NULL) {
-              sdi_refresh_dialog_set_n_tasks_progress(
-                  dialog, snapd_task_get_summary(current_task), done,
-                  tasks->len);
-            }
-          } else {
-            // but if there's no dialog, get the data for this snap and create
-            // it avoid refresh notifications while the progress dialog is shown
-            sdi_snap_set_ignored(snap, TRUE);
-            SnapRefreshData *data = g_malloc0(sizeof(SnapRefreshData));
-            data->snap_name = g_strdup(*p);
-            data->self = g_object_ref(self);
-            snapd_client_get_snap_async(self->client, *p, NULL,
-                                        begin_application_refresh, data);
-          }
-        }
-      }
-    }
-    if (!done && !hold) {
-      // refresh periodically this data, until the snap has been refreshed
-      SnapRefreshData *data = g_malloc0(sizeof(SnapRefreshData));
-      data->change_id = g_strdup(snapd_change_get_id(change));
-      data->self = g_object_ref(self);
-      g_timeout_add_once(CHANGE_REFRESH_PERIOD, (GSourceOnceFunc)refresh_change,
-                         data);
-    }
+  if (g_str_equal(snapd_change_get_kind(change), "auto-refresh")) {
+    update_inhibited_snaps(self, change, done, hold);
+  }
+  update_dock_snaps(self, change, done, hold);
+
+  if (!done && !hold) {
+    // refresh periodically this data, until the snap has been refreshed
+    SnapRefreshData *data = g_malloc0(sizeof(SnapRefreshData));
+    data->change_id = g_strdup(snapd_change_get_id(change));
+    data->self = g_object_ref(self);
+    g_timeout_add_once(CHANGE_REFRESH_PERIOD, (GSourceOnceFunc)refresh_change,
+                       data);
   }
 }
 
@@ -369,7 +389,8 @@ static void notice_cb(GObject *object, SnapdNotice *notice, gboolean first_run,
      */
     if (first_run)
       return;
-    if (!g_str_equal(kind, "auto-refresh"))
+    if (!g_str_equal(kind, "auto-refresh") &&
+        !g_str_equal(kind, "refresh-snap"))
       return;
     snapd_client_get_change_async(
         self->client, snapd_notice_get_key(notice), NULL,
