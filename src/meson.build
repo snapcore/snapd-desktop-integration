@@ -13,7 +13,7 @@ snapd_desktop_integration = executable(
   'sdi-theme-monitor.c',
   'sdi-helpers.c',
   resources, login_src, login_session_src,
-  dependencies: [gtk_dep, snapd_glib_dep, libnotify_dep],
+  dependencies: [gtk_dep, snapd_glib_dep, libnotify_dep, unity_dep],
   install: true,
   link_args: ['-rdynamic'],
 )

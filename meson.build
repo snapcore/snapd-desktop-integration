@@ -10,6 +10,7 @@ endif
 libnotify_dep = dependency('libnotify', version: '>= 0.7.7')
 libsoup_dep = dependency ('libsoup-3.0')
 json_glib_dep = dependency ('json-glib-1.0')
+unity_dep = dependency ('unity')
 
 add_global_arguments('-DGETTEXT_PACKAGE="@0@"'.format (meson.project_name()), language:'c')
 

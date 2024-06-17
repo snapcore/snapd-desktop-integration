@@ -18,6 +18,7 @@
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
 #include <snapd-glib/snapd-glib.h>
+#include <unity.h>
 
 #include "sdi-helpers.h"
 #include "sdi-notify.h"
@@ -315,9 +316,20 @@ static void update_inhibited_snaps(SdiRefreshMonitor *self, SnapdChange *change,
 
 static void update_dock_bar(gpointer key, gpointer value, gpointer data) {
   SnapProgressTaskData *task_data = value;
-  gchar *snap_name = key;
-  g_print("Updating dock: %s %d/%d\n", snap_name, task_data->done_tasks,
-          task_data->total_tasks);
+  const gchar *snap_name = key;
+  gboolean done = (GPOINTER_TO_INT(data) == 1);
+
+  g_autoptr(GPtrArray) desktop_files =
+      sdi_get_desktop_filenames_for_snap(snap_name);
+  gdouble progress =
+      ((gdouble)task_data->done_tasks) / ((gdouble)task_data->total_tasks);
+  for (int i = 0; i < desktop_files->len; i++) {
+    const gchar *desktop_file = desktop_files->pdata[i];
+    g_autoptr(UnityLauncherEntry) launcher =
+        unity_launcher_entry_get_for_desktop_id(desktop_file);
+    unity_launcher_entry_set_progress(launcher, progress);
+    unity_launcher_entry_set_progress_visible(launcher, !done);
+  }
 }
 
 static void update_dock_snaps(SdiRefreshMonitor *self, SnapdChange *change,
@@ -353,8 +365,8 @@ static void update_dock_snaps(SdiRefreshMonitor *self, SnapdChange *change,
       }
     }
   }
-  g_hash_table_foreach(snap_list, update_dock_bar, NULL);
-  g_print("Done\n\n");
+  g_hash_table_foreach(snap_list, update_dock_bar,
+                       GINT_TO_POINTER(done ? 1 : 0));
 }
 
 static void manage_change_update(SnapdClient *source, GAsyncResult *res,
