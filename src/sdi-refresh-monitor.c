@@ -55,14 +55,27 @@ typedef struct {
   SdiRefreshMonitor *self;
 } SnapRefreshData;
 
-static void clean_change_refresh_data(SnapRefreshData *data) {
+static void free_change_refresh_data(SnapRefreshData *data) {
   g_free(data->change_id);
   g_free(data->snap_name);
   g_clear_object(&data->self);
   g_free(data);
 }
 
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(SnapRefreshData, clean_change_refresh_data);
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(SnapRefreshData, free_change_refresh_data);
+
+typedef struct {
+  guint total_tasks;
+  guint done_tasks;
+} SnapProgressTaskData;
+
+static void free_progress_task_data(void *data) { g_free(data); }
+
+static SnapProgressTaskData *new_progress_task_data() {
+  return g_malloc0(sizeof(SnapProgressTaskData));
+}
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(SnapProgressTaskData, free_progress_task_data);
 
 static SdiSnap *find_snap(SdiRefreshMonitor *self, const gchar *snap_name) {
   SdiSnap *snap =
@@ -224,6 +237,13 @@ static void refresh_change(gpointer p) {
                                 g_object_ref(data->self));
 }
 
+static gboolean status_is_done(const gchar *status) {
+  gboolean done = g_str_equal(status, "Done") | g_str_equal(status, "Abort") |
+                  g_str_equal(status, "Error") | g_str_equal(status, "Hold") |
+                  g_str_equal(status, "Wait");
+  return done;
+}
+
 static void update_inhibited_snaps(SdiRefreshMonitor *self, SnapdChange *change,
                                    gboolean done, gboolean hold) {
   SnapdAutorefreshChangeData *changeData =
@@ -280,7 +300,7 @@ static void update_inhibited_snaps(SdiRefreshMonitor *self, SnapdChange *change,
     for (guint i = 0; i < tasks->len; i++) {
       SnapdTask *task = (SnapdTask *)tasks->pdata[i];
       const gchar *status = snapd_task_get_status(task);
-      if (g_str_equal("Done", status)) {
+      if (status_is_done(status)) {
         done++;
       } else if ((current_task == NULL) && g_str_equal("Doing", status)) {
         current_task = g_object_ref(task);
@@ -293,8 +313,49 @@ static void update_inhibited_snaps(SdiRefreshMonitor *self, SnapdChange *change,
   }
 }
 
+static void update_dock_bar(gpointer key, gpointer value, gpointer data) {
+  SnapProgressTaskData *task_data = value;
+  gchar *snap_name = key;
+  g_print("Updating dock: %s %d/%d\n", snap_name, task_data->done_tasks,
+          task_data->total_tasks);
+}
+
 static void update_dock_snaps(SdiRefreshMonitor *self, SnapdChange *change,
-                              gboolean done, gboolean hold) {}
+                              gboolean done, gboolean hold) {
+  GPtrArray *tasks = snapd_change_get_tasks(change);
+  // the key in this table is the snap name; the value is a SnapProgressTaskData
+  // structure
+  g_autoptr(GHashTable) snap_list = g_hash_table_new_full(
+      g_str_hash, g_str_equal, g_free, free_progress_task_data);
+  for (gint i = 0; i < tasks->len; i++) {
+    SnapdTask *task = tasks->pdata[i];
+    SnapdTaskData *task_data = snapd_task_get_data(task);
+    if (task_data == NULL) {
+      continue;
+    }
+    GStrv affected_snaps = snapd_task_data_get_affected_snaps(task_data);
+    if (affected_snaps == NULL) {
+      continue;
+    }
+    gboolean task_done = status_is_done(snapd_task_get_status(task));
+    for (gchar **p = affected_snaps; *p != NULL; p++) {
+      gchar *snap_name = *p;
+      SnapProgressTaskData *progress_task_data = NULL;
+      if (!g_hash_table_contains(snap_list, snap_name)) {
+        progress_task_data = new_progress_task_data();
+        g_hash_table_insert(snap_list, g_strdup(snap_name), progress_task_data);
+      } else {
+        progress_task_data = g_hash_table_lookup(snap_list, snap_name);
+      }
+      progress_task_data->total_tasks++;
+      if (task_done) {
+        progress_task_data->done_tasks++;
+      }
+    }
+  }
+  g_hash_table_foreach(snap_list, update_dock_bar, NULL);
+  g_print("Done\n\n");
+}
 
 static void manage_change_update(SnapdClient *source, GAsyncResult *res,
                                  gpointer p) {

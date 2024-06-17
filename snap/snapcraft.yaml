@@ -44,7 +44,8 @@ slots:
 
 parts:
   snapd-glib:
-    source: https://github.com/snapcore/snapd-glib
+    source: https://github.com/sergio-costas/snapd-glib
+    source-branch: UDENG-3191-add-affected-snaps-data-in-tasks-support-to-snapd-glib
     source-type: git
     plugin: meson
     meson-parameters:
