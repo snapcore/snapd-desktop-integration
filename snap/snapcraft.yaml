@@ -35,6 +35,7 @@ apps:
       - login-session-observe
       - snap
       - snap-refresh-observe
+      - desktop-launch
 
 slots:
   snapd-desktop-integration:
