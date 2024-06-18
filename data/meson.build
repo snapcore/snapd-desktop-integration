@@ -13,5 +13,11 @@ login_session_src = gnome.gdbus_codegen('org.freedesktop.login1.Session',
   interface_prefix : 'org.freedesktop.login1.session'
 )
 
+unity_launcher_src = gnome.gdbus_codegen('com.canonical.Unity.LauncherEntry',
+  sources: 'com.canonical.Unity.LauncherEntry.dbus.xml',
+  interface_prefix : 'com.canonical.unity.launcherentry',
+  namespace: 'Unity'
+)
+
 install_data('io.snapcraft.SnapDesktopIntegration.desktop', install_dir: 'share/applications')
 install_data('snapd-desktop-integration.svg', install_dir: 'share/icons/hicolor/scalable/apps')

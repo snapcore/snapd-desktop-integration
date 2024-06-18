@@ -35,6 +35,7 @@ apps:
       - login-session-observe
       - snap
       - snap-refresh-observe
+      - unity7
 
 slots:
   snapd-desktop-integration:
@@ -71,9 +72,6 @@ parts:
       - --prefix=/usr
     build-packages:
       - jq
-      - libunity-dev
-    stage-packages:
-      - libunity
     override-build: |
       craftctl default
       craftctl set version="$(meson introspect . --projectinfo | jq -r .version)"
