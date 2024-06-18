@@ -402,6 +402,11 @@ static void update_dock_snaps(SdiRefreshMonitor *self, SnapdChange *change,
   g_slist_free_full(snaps_to_remove, g_free);
 }
 
+static gboolean cancelled_change_status(const gchar *status) {
+  return g_str_equal(status, "Hold") || g_str_equal(status, "Undone") ||
+         g_str_equal(status, "Undo");
+}
+
 static void manage_change_update(SnapdClient *source, GAsyncResult *res,
                                  gpointer p) {
   g_autoptr(SdiRefreshMonitor) self = p;
@@ -419,15 +424,15 @@ static void manage_change_update(SnapdClient *source, GAsyncResult *res,
   if (change == NULL)
     return;
 
-  gboolean hold = g_str_equal(snapd_change_get_status(change), "Hold");
   gboolean done = g_str_equal(snapd_change_get_status(change), "Done");
+  gboolean cancelled = cancelled_change_status(snapd_change_get_status(change));
 
   if (g_str_equal(snapd_change_get_kind(change), "auto-refresh")) {
-    update_inhibited_snaps(self, change, done, hold);
+    update_inhibited_snaps(self, change, done, cancelled);
   }
-  update_dock_snaps(self, change, done, hold);
+  update_dock_snaps(self, change, done, cancelled);
 
-  if (!done && !hold) {
+  if (!done && !cancelled) {
     // refresh periodically this data, until the snap has been refreshed
     SnapRefreshData *data = g_malloc0(sizeof(SnapRefreshData));
     data->change_id = g_strdup(snapd_change_get_id(change));
