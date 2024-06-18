@@ -58,3 +58,24 @@ GAppInfo *sdi_get_desktop_file_from_snap(SnapdSnap *snap) {
   }
   return NULL;
 }
+
+GPtrArray *sdi_get_desktop_filenames_for_snap(const gchar *snap_name) {
+  g_autoptr(GDir) desktop_folder =
+      g_dir_open("/var/lib/snapd/desktop/applications", 0, NULL);
+  if (desktop_folder == NULL) {
+    return NULL;
+  }
+  g_autofree gchar *prefix = g_strdup_printf("%s_", snap_name);
+  const gchar *filename;
+  GPtrArray *desktop_files = g_ptr_array_new_with_free_func(g_free);
+  while ((filename = g_dir_read_name(desktop_folder)) != NULL) {
+    if (!g_str_has_prefix(filename, prefix)) {
+      continue;
+    }
+    if (!g_str_has_suffix(filename, ".desktop")) {
+      continue;
+    }
+    g_ptr_array_add(desktop_files, g_strdup(filename));
+  }
+  return desktop_files;
+}
