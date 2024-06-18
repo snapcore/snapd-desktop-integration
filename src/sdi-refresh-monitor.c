@@ -19,7 +19,6 @@
 #include <gtk/gtk.h>
 #include <snapd-glib/snapd-glib.h>
 #include <unistd.h>
-#include <unity.h>
 
 #include "com.canonical.Unity.LauncherEntry.h"
 #include "sdi-helpers.h"
