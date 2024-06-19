@@ -137,7 +137,9 @@ static gboolean check_graphical_sessions(gpointer data) {
 
 static void do_startup(GObject *object, gpointer data) {
   GError *error = NULL;
-  notify_init("snapd-desktop-integration");
+#ifndef USE_GNOTIFY
+  notify_init("snapd-desktop-integration_snapd-desktop-integration");
+#endif
   client = snapd_client_new();
   refresh_monitor = sdi_refresh_monitor_new(G_APPLICATION(object));
   if (!sdi_refresh_monitor_start(refresh_monitor, &error)) {
