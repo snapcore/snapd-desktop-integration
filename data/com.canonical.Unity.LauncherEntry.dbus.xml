@@ -1,0 +1,36 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+ <interface name="org.freedesktop.DBus.Introspectable">
+  <method name="Introspect">
+   <arg name="xml_data" type="s" direction="out"/>
+  </method>
+ </interface>
+ <interface name="org.freedesktop.DBus.Properties">
+  <method name="Get">
+   <arg name="interface_name" direction="in" type="s"/>
+   <arg name="property_name" direction="in" type="s"/>
+   <arg name="value" direction="out" type="v"/>
+  </method>
+  <method name="GetAll">
+   <arg name="interface_name" direction="in" type="s"/>
+   <arg name="props" direction="out" type="a{sv}"/>
+  </method>
+  <method name="Set">
+   <arg name="interface_name" direction="in" type="s"/>
+   <arg name="property_name" direction="in" type="s"/>
+   <arg name="value" direction="in" type="v"/>
+  </method>
+  <signal name="PropertiesChanged">
+   <arg type="s" name="interface_name"/>
+   <arg type="a{sv}" name="changed_properties"/>
+   <arg type="as" name="invalidated_properties"/>
+  </signal>
+ </interface>
+ <interface name="com.canonical.Unity.LauncherEntry">
+  <signal name="Update">
+   <arg type="s" name="app_uri"/>
+   <arg type="a{sv}" name="properties"/>
+  </signal>
+ </interface>
+</node>

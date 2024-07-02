@@ -1,0 +1,4 @@
+option('gnotify',
+       type : 'boolean',
+       value : false,
+       description : 'Use Gio Notify instead of libnotify')

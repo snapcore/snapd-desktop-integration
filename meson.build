@@ -1,4 +1,8 @@
-project('snapd-desktop-integration', 'c', version: '0.9')
+project('snapd-desktop-integration', 'c', version: '0.9beta2')
+
+if get_option('gnotify')
+    add_global_arguments('-DUSE_GNOTIFY', language: 'c')
+endif
 
 gio_dep = dependency('gio-2.0')
 gio_unix_dep = dependency('gio-unix-2.0')

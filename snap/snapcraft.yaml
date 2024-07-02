@@ -35,6 +35,8 @@ apps:
       - login-session-observe
       - snap
       - snap-refresh-observe
+      - desktop-launch
+      - unity7
 
 slots:
   snapd-desktop-integration:
